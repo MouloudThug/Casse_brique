@@ -39,6 +39,7 @@
 	var launcher;
 	var notLaunched;
 	var fired;
+	var firstReceived;
 
 	function init() {
 		var canvas = document.createElement("canvas");
@@ -70,16 +71,15 @@
 		gameSpeed = 2;
 		lauchPosition = new Vector(width/2, height - width/150 - 10);
 		fired = false;
+		firstReceived = -1;
 		addBricks();
 	}
 
 	function addBricks() {
 		for(var i = 0; i < 2 + Math.random()*5; i++) {
-			console.log(i);
 			var x;
 			do {
 				x = Math.trunc(Math.random()*7) * height/7;
-				console.log("je boucle");
 			} while(!checkCoord(x))
 			bricks.push(new Brick(x,0));
 		}
@@ -93,6 +93,8 @@
 	}
 
 	function nextTour() {
+		lauchPosition.x = firstReceived;
+		firstReceived = -1;
 		fired = false;
 		score++;
 		for(var i = 0; i < bricks.length; i++) {
@@ -111,7 +113,6 @@
 		if(fired && boule.length === 0) {
 			nextTour();
 		}
-
 		if(time === gameSpeed) {
 			time = 0;
 			update();
@@ -127,10 +128,13 @@
 		for(var i = 0; i < bricks.length; i++) {
 			bricks[i].render();
 		}
+		stage.fillStyle = "red";
+		stage.beginPath();
+		stage.arc(lauchPosition.x, lauchPosition.y, 5, 0, Math.PI * 2, true);
+		stage.fill();
 	}
 
 	function update() {
-		console.log(bricks.length);
 		var toRemoveBoule = new Array();
 		var toRemoveBrick = new Array();
 		for(var i = 0; i < boule.length; i++) {
@@ -143,6 +147,9 @@
 			if(bricks[i].isDead) toRemoveBrick.push(i);
 		}
 		for(var i = 0; i < toRemoveBoule.length; i++) {
+			if(firstReceived === -1) {
+				firstReceived = boule[i].position.x;
+			}
 			boule.splice(toRemoveBoule[i], 1);
 		}
 		for(var i = 0; i < toRemoveBrick.length; i++) {
@@ -167,7 +174,7 @@
 		this.position = new Vector(lauchPosition.x, lauchPosition.y);
 		this.direction = new Vector(x - this.position.x, y - this.position.y);
 		this.direction.normalize();
-		this.velocity = 14;
+		this.velocity = width / 50;
 		this.isDead = false;
 		this.color = "black";
 
@@ -212,15 +219,13 @@
 				if(tempX + this.size < bricks[i].position.x || tempX - this.size > bricks[i].position.x + bricks[i].size ||
 					tempY + this.size < bricks[i].position.y || tempY - this.size > bricks[i].position.y + bricks[i].size) {
 				} else {
-					console.log(bricks[i].life);
 					bricks[i].life -= 1;
-					console.log(bricks[i].life);
 					var d1 = new Droite(new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y),
 						new Vector(bricks[i].position.x, bricks[i].position.y + bricks[i].size));
 					var d2 = new Droite(new Vector(bricks[i].position.x, bricks[i].position.y),
 						new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y + bricks[i].size));
 					
-					if(d1.isUnder(new Vector(tempX, tempY))) {
+					/*if(d1.isUnder(new Vector(tempX, tempY))) {
 						if(d2.isUnder(new Vector(tempX, tempY))) {
 							this.direction.y *= -1;
 						}
@@ -233,6 +238,19 @@
 							this.direction.x *= -1;
 						}
 						if(!d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.y *= -1;
+						}
+					}*/
+					if(d1.isUnder(new Vector(tempX, tempY))) {
+						if(d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.y *= -1;
+						} else {
+							this.direction.x *= -1;
+						}
+					} else {
+						if(d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.x *= -1;
+						} else {
 							this.direction.y *= -1;
 						}
 					}
