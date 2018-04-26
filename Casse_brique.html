@@ -1,0 +1,296 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Casse brique</title>
+<style type="text/css">
+	body {
+		overflow: hidden;
+	}
+	canvas {
+		border: 2px solid black;
+		margin: auto;
+		display: block;
+	}
+	h1 {
+		text-align: center;
+	}
+</style>
+</head>
+<body>
+	<h1 id="score"></h1>
+</body>
+
+<script type="text/javascript">
+	var stage;
+	var height = window.innerHeight - 50;
+	var width = height / 7 * 7;
+	var loopInterval = setInterval(loop, 1000/120);
+	window.onload = init;
+	var boule = new Array();
+	var bricks = new Array();
+	var time = 0;
+	var tick = 0;
+	var lauchPosition;
+	var score;
+	var gameSpeed;
+	var rect;
+	var launcher;
+	var notLaunched;
+	var fired;
+
+	function init() {
+		var canvas = document.createElement("canvas");
+		canvas.onmousedown = function(e) {
+			if(!fired) {
+				rect = canvas.getBoundingClientRect();
+				var x = e.clientX - rect.left;
+				var y = e.clientY - rect.top;
+				notLaunched = score;
+				boule.push(new Boule(x, y));
+				notLaunched--;
+				launcher = setInterval(function() {
+					boule.push(new Boule(x, y));
+					notLaunched--;
+				}, 50);
+				fired = true;
+			}
+		}
+		var context = canvas.getContext("2d");
+		canvas.width = width;
+		canvas.height = height;
+		document.body.appendChild(canvas);
+		stage = context;
+		initGame();
+	}
+
+	function initGame() {
+		score = 1;
+		gameSpeed = 2;
+		lauchPosition = new Vector(width/2, height - width/150 - 10);
+		fired = false;
+		addBricks();
+	}
+
+	function addBricks() {
+		for(var i = 0; i < 2 + Math.random()*5; i++) {
+			console.log(i);
+			var x;
+			do {
+				x = Math.trunc(Math.random()*7) * height/7;
+				console.log("je boucle");
+			} while(!checkCoord(x))
+			bricks.push(new Brick(x,0));
+		}
+	}
+
+	function checkCoord(x) {
+		for(var i = 0; i < bricks.length; i++) {
+			if(x === bricks[i].position.x && bricks[i].position.y === 0) return false;
+		}
+		return true;
+	}
+
+	function nextTour() {
+		fired = false;
+		score++;
+		for(var i = 0; i < bricks.length; i++) {
+			bricks[i].position.y += height/7;
+		}
+		addBricks();
+	}
+
+	function loop() {
+		time++;
+		tick++;
+		render();
+		if(notLaunched <= 0) {
+			clearInterval(launcher);
+		}
+		if(fired && boule.length === 0) {
+			nextTour();
+		}
+
+		if(time === gameSpeed) {
+			time = 0;
+			update();
+		}
+	} 
+
+	function render() {
+		stage.clearRect(0,0,width,height);
+
+		for(var i = 0; i < boule.length; i++) {
+			boule[i].render();
+		}
+		for(var i = 0; i < bricks.length; i++) {
+			bricks[i].render();
+		}
+	}
+
+	function update() {
+		console.log(bricks.length);
+		var toRemoveBoule = new Array();
+		var toRemoveBrick = new Array();
+		for(var i = 0; i < boule.length; i++) {
+			boule[i].collide();
+			boule[i].update();
+			if(boule[i].isDead) toRemoveBoule.push(i);
+		}
+		for(var i = 0; i < bricks.length; i++) {
+			bricks[i].update();
+			if(bricks[i].isDead) toRemoveBrick.push(i);
+		}
+		for(var i = 0; i < toRemoveBoule.length; i++) {
+			boule.splice(toRemoveBoule[i], 1);
+		}
+		for(var i = 0; i < toRemoveBrick.length; i++) {
+			bricks.splice(toRemoveBrick[i], 1);
+		}
+	}
+
+	function BouleTest(x,y) {
+		this.size = width/150;
+		this.position = new Vector(x,y);
+
+		this.render = function() {
+			stage.fillStyle = "black";
+			stage.beginPath();
+			stage.arc(this.position.x, this.position.y, this.size, 0, Math.PI * 2, true);
+			stage.fill();
+		}
+	}
+
+	function Boule(x,y) {
+		this.size =  width / 150;
+		this.position = new Vector(lauchPosition.x, lauchPosition.y);
+		this.direction = new Vector(x - this.position.x, y - this.position.y);
+		this.direction.normalize();
+		this.velocity = 14;
+		this.isDead = false;
+		this.color = "black";
+
+		this.render = function() {
+			stage.fillStyle = this.color;
+			stage.beginPath();
+			stage.arc(this.position.x, this.position.y, this.size, 0, Math.PI * 2, true);
+			stage.fill();
+		}
+
+		this.update = function() {
+			this.position.x += this.direction.x * this.velocity;
+			this.position.y += this.direction.y * this.velocity;
+		}
+
+		this.collide = function() {
+			var tempX = this.position.x + this.direction.x * this.velocity;
+			var tempY = this.position.y + this.direction.y * this.velocity;
+			if(tempX - this.size <= 0 || tempX + this.size >= width) this.direction.x *= -1;
+			if(tempY - this.size <= 0) this.direction.y *= -1;
+			if(tempY >= height) {
+				this.isDead = true;
+				return;
+			}
+
+			for(var i = 0; i < bricks.length; i++) {
+				/*if(this.position.x + this.size < bricks[i].position.x || this.position.x - this.size > bricks[i].position.x + bricks[i].size ||
+					this.position.y + this.size < bricks[i].position.y || this.position.y - this.size > bricks[i].position.y + bricks[i].size) {
+				} else {
+					bricks[i].life -= 1;
+					var d1 = new Droite(new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y),
+						new Vector(bricks[i].position.x, bricks[i].position.y + bricks[i].size));
+					var d2 = new Droite(new Vector(bricks[i].position.x, bricks[i].position.y),
+						new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y + bricks[i].size));
+					if((d1.isUnder(this.position) && d2.isUnder(this.position)) || (!d1.isUnder(this.position) && !d2.isUnder(this.position))) {
+						this.direction.y *= -1;
+					}
+					if((!d1.isUnder(this.position) && d2.isUnder(this.position)) || (d1.isUnder(this.position) && !d2.isUnder(this.position))) {
+						this.direction.x *= -1;
+					}
+				}*/
+				if(tempX + this.size < bricks[i].position.x || tempX - this.size > bricks[i].position.x + bricks[i].size ||
+					tempY + this.size < bricks[i].position.y || tempY - this.size > bricks[i].position.y + bricks[i].size) {
+				} else {
+					console.log(bricks[i].life);
+					bricks[i].life -= 1;
+					console.log(bricks[i].life);
+					var d1 = new Droite(new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y),
+						new Vector(bricks[i].position.x, bricks[i].position.y + bricks[i].size));
+					var d2 = new Droite(new Vector(bricks[i].position.x, bricks[i].position.y),
+						new Vector(bricks[i].position.x + bricks[i].size, bricks[i].position.y + bricks[i].size));
+					
+					if(d1.isUnder(new Vector(tempX, tempY))) {
+						if(d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.y *= -1;
+						}
+						if(!d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.x *= -1;
+						}
+					}
+					if(!d1.isUnder(new Vector(tempX, tempY))) {
+						if(d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.x *= -1;
+						}
+						if(!d2.isUnder(new Vector(tempX, tempY))) {
+							this.direction.y *= -1;
+						}
+					}
+					return;
+				}
+			}
+		}
+	}
+
+	function Brick(x,y) {
+		this.position = new Vector(x,y);
+		this.size = height/7;
+		this.baseLife = Math.random() <= 0.1 ? score*2 : score;
+		this.life = this.baseLife;
+		this.isDead = false;
+		var temp = Math.random();
+		if(temp < 0.33) this.color = "241,136,7";
+		else if(temp < 0.66) this.color = "127,201,198";
+		else this.color = "145,149,202";
+
+		this.render = function() {
+			stage.fillStyle = "rgba(" + this.color + "," + this.life/this.baseLife + ")";
+			stage.fillRect(this.position.x, this.position.y, this.size, this.size);
+			stage.fillStyle = "white";
+			stage.fillRect(this.position.x + this.size/10, this.position.y + this.size/10, this.size*8/10, this.size*8/10);
+			stage.fillStyle = "rgb(" + this.color + ")";
+			stage.font = "30px Arial";
+			stage.textAlign = "center";
+			stage.fillText(this.life, this.position.x + this.size/2, this.position.y + this.size/2 + 10);
+		}
+
+		this.update = function() {
+			if(this.life <= 0) this.isDead = true;
+		}
+	}
+
+	function Vector(x,y) {
+		this.x = x;
+		this.y = y;
+
+		this.normalize = function() {
+			var temp = Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2));
+			this.x /= temp;
+			this.y /= temp;
+		}
+	}
+
+	function Droite(start, end) {
+		this.a = (end.y - start.y)/(end.x - start.x);
+		this.b = (this.a*start.x - start.y)*-1;
+
+		this.isUnder = function(position) {
+			if(this.a*position.x + this.b <= position.y) {
+				return true;
+			}
+			return false;
+		}
+	}
+</script>
+
+</html>
