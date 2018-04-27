@@ -11,14 +11,13 @@
 		height: 100%;
 	}
 	canvas {
-		height: 97vh;
 		border: 5px solid black;
 		display: block;
 		margin: auto;
 	}
 
 	#game {
-		height: 100%;
+		height: 97vh;
 		width: 50%;
 		margin: auto;
 		display: block;
@@ -29,11 +28,25 @@
 	#scores {
 		width: 25%;
 	}
+	#score {
+		text-align: center;
+		font-size: 10vmin;
+		margin: 0;
+	}
+	#speedControl {
+		text-align: center;
+		vertical-align: bottom;
+	}
 </style>
 </head>
 <body>
 	<div id="control">
-		<p>Score: </p>
+		<p id="score">Score: 1</p>
+		<div id="speedControl">
+			<span>SPEED</span>
+			<button onclick="changeSpeed(1)">▲</button>
+			<button onclick="changeSpeed(0)">▼</button>
+		</div>
 	</div>
 	<div id="game"></div>
 	<div id="scores"></div>
@@ -41,7 +54,7 @@
 
 <script type="text/javascript">
 	var stage;
-	var height = window.innerHeight;
+	var height = window.innerHeight - 20;
 	var width = height / 10 * 7;
 	var loopInterval = setInterval(loop, 1000/120);
 	window.onload = init;
@@ -58,11 +71,12 @@
 	var notLaunched;
 	var fired;
 	var firstReceived;
+	var lost;
 
 	function init() {
 		var canvas = document.createElement("canvas");
 		canvas.onmousedown = function(e) {
-			if(!fired) {
+			if(!fired && !lost) {
 				rect = canvas.getBoundingClientRect();
 				var x = e.clientX - rect.left;
 				var y = e.clientY - rect.top;
@@ -72,15 +86,14 @@
 				launcher = setInterval(function() {
 					boule.push(new Boule(x, y));
 					notLaunched--;
-				}, 50);
+				}, 25);
 				fired = true;
 			} 
 		}
-		console.log(height);
 		document.body.height = height;
 		var context = canvas.getContext("2d");
 		canvas.width = width;
-		canvas.height = height - 20;
+		canvas.height = height;
 		document.getElementById("game").appendChild(canvas);
 		stage = context;
 		initGame();
@@ -89,10 +102,19 @@
 	function initGame() {
 		score = 1;
 		gameSpeed = 0;
-		lauchPosition = new Vector(width/2, height-20);
+		lost = false;
+		lauchPosition = new Vector(width/2, height);
 		fired = false;
 		firstReceived = -1;
 		addBricks();
+	}
+
+	function changeSpeed(choix) {
+		if(choix === 1) {
+			if(gameSpeed <= 0) gameSpeed++;
+		} else {
+			if(gameSpeed >= -1) gameSpeed--;
+		}
 	}
 
 	function addBricks() {
@@ -117,8 +139,12 @@
 		firstReceived = -1;
 		fired = false;
 		score++;
+		document.getElementById("score").textContent = "Score : " + score;
 		for(var i = 0; i < bricks.length; i++) {
 			bricks[i].position.y += height/10;
+			if(bricks[i].position.y + bricks[i].size >= height - 10) {
+				lost = true;
+			}
 		}
 		addBricks();
 	}
@@ -136,6 +162,18 @@
 		if(time === 2) {
 			time = gameSpeed;
 			update();
+		}
+		if(lost) {
+			if(bricks.length != 0) {
+				var index = Math.trunc(Math.random() * (bricks.length + 1));
+				if(bricks[index] != null) bricks[index].life--;
+			}
+			stage.beginPath();
+			stage.fillStyle = "black";
+			stage.font = "6vmin Arial";
+			stage.textAlign = "center";
+			stage.fillText("GAME OVER", width/2, height/2 + 20);
+			stage.fill();
 		}
 	} 
 
@@ -271,7 +309,7 @@
 			stage.fill();
 			stage.beginPath();
 			stage.fillStyle = "rgb(" + this.color + ")";
-			stage.font = "30px Arial";
+			stage.font = "3vmin Arial";
 			stage.textAlign = "center";
 			stage.fillText(this.life, this.position.x + this.size/2, this.position.y + this.size/2 + 10);
 			stage.fill();
